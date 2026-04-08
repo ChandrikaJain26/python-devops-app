@@ -2,7 +2,10 @@ pipeline {
     agent { label 'python-agent' }
 
     environment {
-        VENV = 'venv'
+        VENV = 'venv'  
+        NEXUS_REGISTRY = "13.232.8.122:8082"
+        IMAGE_NAME = "python-devops-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -88,6 +91,20 @@ pipeline {
                 '''
             }
         }
-
+        stage('Push Docker Image to Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-docker-creds',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh '''
+                    docker login -u $NEXUS_USER -p $NEXUS_PASS http://$NEXUS_REGISTRY
+                    docker tag $IMAGE_NAME:latest $NEXUS_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+                    docker push $NEXUS_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+                    '''
+                }
+            }
+        }
     }
 }
