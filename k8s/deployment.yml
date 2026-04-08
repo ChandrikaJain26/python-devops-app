@@ -16,6 +16,6 @@ spec:
         - name: nexus-docker-secret
       containers:
       - name: python-devops-app
-        image: 193913969706.dkr.ecr.ap-south-1.amazonaws.com/python-devops-app:1
+        image: 193913969706.dkr.ecr.ap-south-1.amazonaws.com/python-devops-app:19
         ports:
         - containerPort: 8080
