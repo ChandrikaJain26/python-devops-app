@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python-devops-app"
+version = "1.0.0"
+description = "Python DevOps CI/CD Demo App (Wheel + Tests + Docker)"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = ["flask"]
+
+[tool.setuptools]
+packages = ["app"]
