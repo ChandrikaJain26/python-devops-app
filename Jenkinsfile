@@ -48,9 +48,9 @@ pipeline {
             steps {
                 sh '''
                 . $VENV/bin/activate
-                pip install locust
+                python -m pip install locust
                 cd performance
-                locust --headless -u 10 -r 2 -t 20s \
+                python -m locust --headless -u 10 -r 2 -t 20s \
                   -f locustfile.py \
                   --host http://localhost:8080
                 '''
