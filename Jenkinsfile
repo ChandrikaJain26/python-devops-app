@@ -2,10 +2,18 @@ pipeline {
     agent { label 'python-agent' }
 
     environment {
-        VENV = 'venv'  
+        VENV = 'venv'
+
+        // Nexus (keep as-is)
         NEXUS_REGISTRY = "13.232.8.122:8082"
         IMAGE_NAME = "python-devops-app"
         IMAGE_TAG = "${BUILD_NUMBER}"
+
+        // ECR
+        AWS_REGION = "ap-south-1"
+        ECR_ACCOUNT_ID = "193913969706"
+        ECR_REGISTRY = "${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        ECR_REPO = "python-devops-app"
     }
 
     stages {
@@ -52,45 +60,40 @@ pipeline {
                 sh '''
                 . $VENV/bin/activate
 
-                echo "Starting Flask app for performance testing..."
                 nohup python app/main.py > app.log 2>&1 &
                 APP_PID=$!
-
-                echo "Waiting for app to start..."
                 sleep 5
 
                 cd performance
-                python -m pip install locust
+                pip install locust
+                locust --headless -u 10 -r 2 -t 20s \
+                    -f locustfile.py --host http://localhost:8080
 
-                python -m locust --headless \
-                    -u 10 -r 2 -t 20s \
-                    -f locustfile.py \
-                    --host http://localhost:8080
-
-                echo "Stopping Flask app..."
                 kill $APP_PID
                 '''
-             }
-         }
+            }
+        }
 
-        
         stage('SonarCloud Scan') {
             steps {
                 script {
                     def scannerHome = tool 'SonarScanner'
-                    withSonarQubeEnv('SonarCloud') {      
-                        sh "${scannerHome}/bin/sonar-scanner"               
+                    withSonarQubeEnv('SonarCloud') {
+                        sh "${scannerHome}/bin/sonar-scanner"
                     }
                 }
             }
         }
+
         stage('Docker Build') {
             steps {
                 sh '''
-                docker build -t python-devops-app:latest .
+                docker build -t ${IMAGE_NAME}:latest .
                 '''
             }
         }
+
+        // ✅ KEEP NEXUS PUSH (unchanged)
         stage('Push Docker Image to Nexus') {
             steps {
                 withCredentials([usernamePassword(
@@ -100,11 +103,57 @@ pipeline {
                 )]) {
                     sh '''
                     docker login -u $NEXUS_USER -p $NEXUS_PASS http://$NEXUS_REGISTRY
-                    docker tag $IMAGE_NAME:latest $NEXUS_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
-                    docker push $NEXUS_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+                    docker tag ${IMAGE_NAME}:latest $NEXUS_REGISTRY/${IMAGE_NAME}:${IMAGE_TAG}
+                    docker push $NEXUS_REGISTRY/${IMAGE_NAME}:${IMAGE_TAG}
                     '''
                 }
             }
+        }
+
+        // ✅ NEW: Push image to ECR (IAM role based login)
+        stage('Login & Push to ECR') {
+            steps {
+                sh '''
+                aws ecr get-login-password --region $AWS_REGION \
+                | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+                docker tag ${IMAGE_NAME}:latest \
+                  $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+
+                docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+                '''
+            }
+        }
+
+        // ✅ NEW: GitOps update for Argo CD
+        stage('Update GitOps Manifest') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-creds',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PASS'
+                )]) {
+                    sh '''
+                    sed -i "s|image:.*|image: $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG|g" k8s/deployment.yml
+
+                    git config user.name "jenkins"
+                    git config user.email "jenkins@local"
+
+                    git add k8s/deployment.yml
+                    git commit -m "Deploy image $IMAGE_TAG via Argo CD"
+                    git push https://${GIT_USER}:${GIT_PASS}@github.com/ChandrikaJain26/python-devops-app.git main
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Build ${IMAGE_TAG} deployed successfully via Argo CD"
+        }
+        failure {
+            echo "❌ Pipeline failed"
         }
     }
 }
