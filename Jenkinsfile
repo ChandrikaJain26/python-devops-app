@@ -48,13 +48,26 @@ pipeline {
             steps {
                 sh '''
                 . $VENV/bin/activate
-                python -m pip install locust
+
+                echo "Starting Flask app for performance testing..."
+                nohup python app/main.py > app.log 2>&1 &
+                APP_PID=$!
+
+                echo "Waiting for app to start..."
+                sleep 5
+
                 cd performance
-                python -m locust --headless -u 10 -r 2 -t 20s \
-                  -f locustfile.py \
-                  --host http://localhost:8080
+                python -m pip install locust
+
+                python -m locust --headless \
+                    -u 10 -r 2 -t 20s \
+                    -f locustfile.py \
+                    --host http://localhost:8080
+
+                echo "Stopping Flask app..."
+                kill $APP_PID
                 '''
-            }
-        }
+             }
+         }
     }
 }
