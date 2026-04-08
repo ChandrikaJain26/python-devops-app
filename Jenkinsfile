@@ -29,7 +29,7 @@ pipeline {
             steps {
                 sh '''
                 . $VENV/bin/activate
-                pytest tests --junitxml=unit-report.xml
+                python -m pytest tests --junitxml=unit-report.xml
                 '''
             }
         }
