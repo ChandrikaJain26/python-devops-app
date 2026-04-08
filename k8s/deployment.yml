@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-devops-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-devops-app
+  template:
+    metadata:
+      labels:
+        app: python-devops-app
+    spec:
+      imagePullSecrets:
+        - name: nexus-docker-secret
+      containers:
+      - name: python-devops-app
+        image: 13.232.8.122:8082/python-devops-app:BUILD_TAG
+        ports:
+        - containerPort: 8080
