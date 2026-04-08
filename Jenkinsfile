@@ -69,5 +69,17 @@ pipeline {
                 '''
              }
          }
+
+        stage('SonarCloud Scan') {
+            steps {
+                withSonarQubeEnv('SonarCloud') {
+                    sh '''
+                    . $VENV/bin/activate
+                    pip install sonar-scanner-cli
+                    sonar-scanner
+                    '''
+                }
+            }
+        }
     }
 }
