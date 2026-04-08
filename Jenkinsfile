@@ -81,6 +81,13 @@ pipeline {
                 }
             }
         }
+        stage('Docker Build') {
+            steps {
+                sh '''
+                docker build -t python-devops-app:latest .
+                '''
+            }
+        }
 
     }
 }
