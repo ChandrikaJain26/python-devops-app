@@ -75,11 +75,8 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'SonarScanner'
-                    withSonarQubeEnv('SonarCloud') {
-                        sh '''
-                        . $VENV/bin/activate
-                        ${scannerHome}/bin/sonar-scanner
-                        '''
+                    withSonarQubeEnv('SonarCloud') {      
+                        sh "${scannerHome}/bin/sonar-scanner"               
                     }
                 }
             }
