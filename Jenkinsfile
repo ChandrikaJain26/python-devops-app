@@ -18,9 +18,12 @@ pipeline {
 
     stages {
 
+
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    credentialsId: 'github-creds',
+                    url: 'https://github.com/ChandrikaJain26/python-devops-app.git'
             }
         }
 
@@ -141,7 +144,7 @@ pipeline {
 
                     git add k8s/deployment.yml
                     git commit -m "Deploy image $IMAGE_TAG via Argo CD"
-                    git push https://${GIT_USER}:${GIT_PASS}@github.com/ChandrikaJain26/python-devops-app.git main
+                    git push https://${GIT_USER}:${GIT_PASS}@github.com/ChandrikaJain26/python-devops-app.git HEAD:main
                     '''
                 }
             }
